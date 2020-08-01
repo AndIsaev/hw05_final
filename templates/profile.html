@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}{{ author.get_full_name }}{% endblock %}
+{% block header %}Профиль пользователя {{ author.get_full_name }}{% endblock %}
+{% block content %}
+{% if user.is_authenticated %}
+{% include "includes/card_author.html" %}
+
+    <div class="container">
+
+    {% include "menu.html" with index=True %}
+
+           <h1> Последние обновления пользователя</h1>
+        <!-- Вывод ленты записей -->
+        {% for post in page %}
+            <!-- Вот он, новый include! -->
+            {% include "includes/post_item.html" with post=post %}
+        {% endfor %}
+
+
+                {% if page.has_other_pages %}
+                    {% include "includes/paginator.html" with items=page paginator=paginator %}
+                {% endif %}
+    </div>
+{% endif %}
+{% endblock %}

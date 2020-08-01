@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}{{ author.get_full_name }}{% endblock %}
+{% block content %}
+{% include "includes/card_author.html" %}
+    <div class="container">
+           <h1> Последние обновления </h1>
+                    {% include "includes/post_item.html" with post=post %}
+                    {% include "includes/comments.html" %}
+    </div>
+
+{% endblock %}
