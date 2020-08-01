@@ -1,9 +1,11 @@
 import io
 import tempfile
 
+from PIL import Image
 from django.contrib.auth import get_user_model
 from django.core.files.base import ContentFile
 from django.core.files.images import ImageFile
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, Client, override_settings
 from .models import *
 from .forms import *
@@ -127,7 +129,6 @@ class ProfileTest(TestCase):
         self.assertNotIn(post, response.context["paginator"].object_list)
 
 
-
 class TestSprintTheory06(TestCase):
     def setUp(self):
         self.auth_client = Client()
@@ -147,6 +148,7 @@ class TestSprintTheory06(TestCase):
             reverse("index"),
             reverse("profile", kwargs={"username":self.user}),
             reverse("group_posts", kwargs={"slug": self.group.slug}))
+
 
     def test_404(self):
         self.auth_client.force_login(self.user)
@@ -169,6 +171,7 @@ class TestSprintTheory06(TestCase):
         self.assertEqual(post.status_code, 200)
         self.assertEqual(Post.objects.count(), 1)
 
+
     def test_img_tag_and_txt(self):
         cache.clear()
         with tempfile.TemporaryDirectory() as temp_directory:
@@ -188,14 +191,14 @@ class TestSprintTheory06(TestCase):
                     self.assertContains(response, "<img")
 
         """проверка txt файла"""
-        with open('media/text.txt', 'rb') as img:
+        with open("media/text.txt", "rb") as img:
             post = self.auth_client.post(
-                reverse('new_post'),
+                reverse("new_post"),
                 data={
-                    'author': self.user,
-                    'text': self.text,
-                    'group': self.group.id,
-                    'image': img
+                    "author": self.user,
+                    "text": self.text,
+                    "group": self.group.id,
+                    "image": img
                 },
                 follow=True)
         self.assertEqual(post.status_code, 200)
@@ -206,9 +209,9 @@ class TestSprintTheory06(TestCase):
     def test_cache_index(self):
         cache.clear()
         with self.assertNumQueries(3):
-            response = self.auth_client.get(reverse('index'))
+            response = self.auth_client.get(reverse("index"))
             self.assertEqual(response.status_code, 200)
-            response = self.auth_client.get(reverse('index'))
+            response = self.auth_client.get(reverse("index"))
             self.assertEqual(response.status_code, 200)
 
 
@@ -234,10 +237,12 @@ class TestFollow(TestCase):
             description="test description")
         self.text = "test"
 
-        self.auth_user = User.objects.create_user(
+        self.cool_user = User.objects.create_user(
             username="sarah", email="connor@yandex.ru", password="sarah"
         )
-        self.client.force_login(self.auth_user)
+        self.client.force_login(self.cool_user)
+        self.unauth_client = Client()
+
 
     def test_follow_unfollow(self):
         before = Follow.objects.all().count()
@@ -261,9 +266,10 @@ class TestFollow(TestCase):
         )
         self.assertEqual(after - 1, 0)
 
+
     def test_comment(self):
         cache.clear()
-        self.post = Post.objects.create(text='Hello world', author=self.user_follower)
+        self.post = Post.objects.create(text="Hello world", author=self.user_follower)
         self.client_auth_follower.post(
             f"/{self.user_follower.username}/{self.post.id}/comment/",
              {"text": "comment"}, follow=True)
@@ -273,3 +279,36 @@ class TestFollow(TestCase):
         self.assertEqual(Post.objects.count(), 1)
 
 
+    def test_text_for_follower(self):
+        before = Follow.objects.all().count()
+        self.client_auth_follower.get(
+            reverse(
+                "profile_follow",
+                kwargs={
+                    "username": self.user_following.username,
+                },
+            )
+        )
+        self.assertEqual(before + 1, 1)
+
+        post = self.client_auth_following.post(
+            reverse('new_post'),
+            data={
+                "author": self.user_following,
+                "text": self.text,
+                "group": self.group.id,
+            },
+            follow=True)
+        self.assertEqual(post.status_code, 200)
+        self.assertEqual(Post.objects.count(), 1)
+
+        """подписчик проверяет пост и наличие автора"""
+        response = self.client_auth_follower.get(f"/follow/")
+        self.assertEqual(post.status_code, 200)
+        self.assertContains(response, self.text)
+        self.assertContains(response, self.user_following)
+        """не подписчик"""
+        step = self.client.get(f"/follow/")
+        self.assertEqual(step.status_code, 200)
+        self.assertNotContains(step, self.text)
+        self.assertNotContains(step, self.user_following)

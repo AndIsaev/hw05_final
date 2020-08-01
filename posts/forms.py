@@ -28,11 +28,11 @@ class FollowForm(forms.ModelForm):
     class Meta:
         model = Follow
         labels = {
-            'user': ('Пользователь подписывается на:'),
-            'author': ('Автор даной записи'),
+            "user": ("Пользователь подписывается на:"),
+            "author": ("Автор даной записи"),
         }
         help_texts = {
-           'user': ('Вы подписываетесь на:'),
-          'author': ('Автор данной записи'),
+           "user": ("Вы подписываетесь на:"),
+          "author": ("Автор данной записи"),
         }
-        fields = ['user']
+        fields = ["user"]

@@ -66,11 +66,11 @@ def post_view(request, username, post_id):
     form = CommentForm(request.POST or None)
     author = post.author
     count = author.posts.count()
-    return render(request, 'post.html', {
-        'post': post,
+    return render(request, "post.html", {
+        "post": post,
         "author": author,
-        'items': post.comments.all(),
-        'form': form,
+        "items": post.comments.all(),
+        "form": form,
         "count": count
     })
 
@@ -109,12 +109,12 @@ def add_comment(request, username, post_id):
         form.instance.author = request.user
         form.instance.post_id = post_id
         form.save()
-    return redirect('post', username=username, post_id=post_id)
+    return redirect("post", username=username, post_id=post_id)
 
 
 @login_required
 def follow_index(request):
-    user_follows = Follow.objects.select_related('author').filter(user=request.user).values_list("author")
+    user_follows = Follow.objects.select_related("author").filter(user=request.user).values_list("author")
     post_list = Post.objects.filter(author__in=user_follows).order_by("-pub_date")
     paginator = Paginator(post_list, 10)
     page_number = request.GET.get("page")
@@ -131,7 +131,7 @@ def profile_follow(request, username):
     author = get_object_or_404(User, username=username)
     if request.user != author:
         Follow.objects.get_or_create(user=request.user, author=author)
-    return redirect('profile', username=username)
+    return redirect("profile", username=username)
 
 
 
@@ -142,4 +142,4 @@ def profile_unfollow(request, username):
         user=request.user,
         author=author,
     ).delete()
-    return redirect('profile', username=username)
+    return redirect("profile", username=username)
