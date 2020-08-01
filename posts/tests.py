@@ -128,7 +128,7 @@ class ProfileTest(TestCase):
 
 
 
-class TestSprint06(TestCase):
+class TestSprintTheory06(TestCase):
     def setUp(self):
         self.auth_client = Client()
         self.text = "test"
@@ -210,3 +210,66 @@ class TestSprint06(TestCase):
             self.assertEqual(response.status_code, 200)
             response = self.auth_client.get(reverse('index'))
             self.assertEqual(response.status_code, 200)
+
+
+
+class TestFollow(TestCase):
+    def setUp(self):
+        self.client_auth_follower = Client()
+        self.client_auth_following = Client()
+        self.user_follower = User.objects.create_user(
+            username="follower", email="true@true.com",
+            password="lalalend!123"
+        )
+        self.user_following = User.objects.create_user(
+            username="following", email="false@false.ru",
+            password="kokoshanel123!"
+        )
+        self.client_auth_follower.force_login(self.user_follower)
+        self.client_auth_following.force_login(self.user_following)
+        self.comment = "test"
+        self.group = Group.objects.create(
+            title="test group",
+            slug="test_group",
+            description="test description")
+        self.text = "test"
+
+        self.auth_user = User.objects.create_user(
+            username="sarah", email="connor@yandex.ru", password="sarah"
+        )
+        self.client.force_login(self.auth_user)
+
+    def test_follow_unfollow(self):
+        before = Follow.objects.all().count()
+        self.client_auth_follower.get(
+            reverse(
+                "profile_follow",
+                kwargs={
+                    "username": self.user_following.username,
+                },
+            )
+        )
+        after = Follow.objects.all().count()
+        self.assertEqual(before + 1, after)
+        self.client_auth_follower.get(
+            reverse(
+                "profile_follow",
+                kwargs={
+                    "username": self.user_following.username,
+                },
+            )
+        )
+        self.assertEqual(after - 1, 0)
+
+    def test_comment(self):
+        cache.clear()
+        self.post = Post.objects.create(text='Hello world', author=self.user_follower)
+        self.client_auth_follower.post(
+            f"/{self.user_follower.username}/{self.post.id}/comment/",
+             {"text": "comment"}, follow=True)
+        response = self.client_auth_following.get(
+            f"/{self.user_follower.username}/{self.post.id}/")
+        self.assertContains(response, "comment")
+        self.assertEqual(Post.objects.count(), 1)
+
+
