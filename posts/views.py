@@ -51,13 +51,15 @@ def profile(request, username):
     paginator = Paginator(post, 10)
     page_number = request.GET.get("page")
     page = paginator.get_page(page_number)
-    following = Follow.objects.filter(author=author)
+    following = Follow.objects.filter(author=author).count()
+    subscriptions = Follow.objects.filter(user=author).count()
     return render(request, "profile.html", {"author": author,
                                             "count":paginator.count,
                                             "page": page,
                                             "post": post,
                                             "paginator": paginator,
-                                            "following":following})
+                                            "following":following,
+                                            "subscriptions":subscriptions})
 
 
 def post_view(request, username, post_id):
@@ -77,9 +79,9 @@ def post_view(request, username, post_id):
 
 @login_required
 def post_edit(request, username, post_id):
-    if request.user.username != username:
-        return redirect("post", username=username, post_id=post_id)
     post = get_object_or_404(Post, author__username=username, id=post_id)
+    if post.author != request.user:
+        return redirect("post", username=username, post_id=post_id)
     form = PostForm(request.POST or None, files=request.FILES or None, instance=post)
     if form.is_valid():
         form.save()
@@ -114,8 +116,10 @@ def add_comment(request, username, post_id):
 
 @login_required
 def follow_index(request):
-    user_follows = Follow.objects.select_related("author").filter(user=request.user).values_list("author")
-    post_list = Post.objects.filter(author__in=user_follows).order_by("-pub_date")
+    user_follows = Follow.objects.select_related("author").\
+        filter(user=request.user).values_list("author")
+    post_list = Post.objects.filter(author__in=user_follows).\
+        order_by("-pub_date")
     paginator = Paginator(post_list, 10)
     page_number = request.GET.get("page")
     page = paginator.get_page(page_number)

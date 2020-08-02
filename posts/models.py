@@ -30,7 +30,11 @@ class Post(models.Model):
     group = models.ForeignKey(Group, on_delete=models.SET_NULL,
                               related_name="posts", blank=True,
                               null=True, verbose_name="Группа")
-    image = models.ImageField(upload_to='posts/', blank=True, null=True)
+    image = models.ImageField(upload_to='posts/',
+                              blank=True,
+                              null=True,
+                              verbose_name="Картинка"
+                              )
 
 
     class Meta:

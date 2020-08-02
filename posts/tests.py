@@ -69,14 +69,16 @@ class ProfileTest(TestCase):
                         fetch_redirect_response=True)
 
 
-    def _post_for_page(self, url, post):
+    def _post_for_page(self, url, group, user, text):
+        cache.clear()
         response = self.auth_client.get(url)
-        if "paginator" in response.context:
-            posts_list = response.context['paginator'].object_list
-            self.assertEqual(Post.objects.count(), 1)
-            self.assertEqual(posts_list[0], post)
+        if 'paginator' in response.context:
+            current_post = response.context['paginator'].object_list.first()
         else:
-            self.assertEqual(response.context['post'], post)
+            current_post = response.context['post']
+        self.assertEqual(current_post.text, text)
+        self.assertEqual(current_post.group, group)
+        self.assertEqual(current_post.author, user)
 
 
     def test_post_for_all_pages(self):
@@ -93,39 +95,40 @@ class ProfileTest(TestCase):
                     "post_id": post.id,
                 })
         ):
-            self._post_for_page(url=url, post=post)
+
+            self._post_for_page(url, post.group, post.author, post.text)
 
 
     def test_edit_post(self):
-        post = Post.objects.create(
-            text="test",
-            group=self.group,
-            author=self.user)
-        new_group = Group.objects.create(
-            title="test_gp",
-            slug="test_gp")
-        kwargs = {
-            "username": self.user.username,
-            "post_id": post.id}
-        path = reverse("post_edit",
-                       kwargs=kwargs)
-        data = {
-            "text": "Новый текст поста!!!!",
-            "group": new_group.id}
-        response = self.auth_client.post(path, data=data)
-        self.assertEqual(response.status_code, 302)
-
+        cache.clear()
+        new_group = Group.objects.create(title="lola", slug="lola")
+        post = Post.objects.create(text="text",
+                                   author=self.user,
+                                   group=self.group)
+        post_text = "edit_text"
+        post_id = post.id
+        self.auth_client.post(
+            reverse(
+                "post_edit",
+                kwargs={"username": self.user.username,
+                        "post_id": post_id, },
+            ),
+            data={"text": post_text, "group": new_group.id},
+            follow=True,
+        )
+        post = Post.objects.get(id=post.id)
         for url in (
-            reverse("index"),
-            reverse("profile", kwargs={"username": self.user.username}),
-            reverse("post", kwargs={
+                reverse("index"),
+                reverse("profile", kwargs={"username": self.user.username}),
+                reverse("post", kwargs={
                     "username": self.user.username,
                     "post_id": post.id,
                 })
         ):
-            self._post_for_page(url=url, post=post)
-        response = self.auth_client.get(reverse("group_posts",
-                                                kwargs={"slug": self.group.slug}))
+            self._post_for_page(url, post.group, post.author, post.text)
+        response = self.auth_client.get(
+            reverse("group_posts", kwargs={"slug": self.group.slug})
+        )
         self.assertNotIn(post, response.context["paginator"].object_list)
 
 
@@ -158,21 +161,23 @@ class TestSprintTheory06(TestCase):
 
 
     def test_post_image(self):
-        with open("media/file.jpg", "rb") as img:
-            post = self.auth_client.post(
-                reverse("new_post"),
-                data={
-                    "author": self.user,
-                    "text": "test",
-                    "group": self.group.id,
-                    "image": img
-                },
-                follow=True)
-        self.assertEqual(post.status_code, 200)
-        self.assertEqual(Post.objects.count(), 1)
+        with tempfile.TemporaryDirectory() as temp_directory:
+            with override_settings(MEDIA_ROOT=temp_directory):
+                with open("media/file.jpg", "rb") as img:
+                    post = self.auth_client.post(
+                        reverse("new_post"),
+                        data={
+                            "author": self.user,
+                            "text": "test",
+                            "group": self.group.id,
+                            "image": img
+                            },
+                        follow=True)
+                    self.assertEqual(post.status_code, 200)
+                    self.assertEqual(Post.objects.count(), 1)
 
 
-    def test_img_tag_and_txt(self):
+    def test_img_tag(self):
         cache.clear()
         with tempfile.TemporaryDirectory() as temp_directory:
             with override_settings(MEDIA_ROOT=temp_directory):
@@ -190,20 +195,30 @@ class TestSprintTheory06(TestCase):
                     response = self.auth_client.get(url)
                     self.assertContains(response, "<img")
 
-        """проверка txt файла"""
-        with open("media/text.txt", "rb") as img:
-            post = self.auth_client.post(
-                reverse("new_post"),
-                data={
-                    "author": self.user,
-                    "text": self.text,
-                    "group": self.group.id,
-                    "image": img
-                },
-                follow=True)
-        self.assertEqual(post.status_code, 200)
-        self.assertEqual(Post.objects.count(), 1)
 
+    def test_txt_error(self):
+        cache.clear()
+        img_bytes = (
+            b'\x47\x49\x46\x38\x39\x61\x01\x00\x01\x00\x00\x00\x00\x21\xf9\x04'
+            b'\x01\x0a\x00\x01\x00\x2c\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02'
+            b'\x02\x4c\x01\x00\x3b'
+        )
+        image = SimpleUploadedFile("small.txt", img_bytes,
+                                   content_type="text/plain")
+        post_data = {"text": "test post",
+                     "group": self.group.id, "image": image}
+        text_error = "Формат файлов 'txt' не поддерживается. Поддерживаемые " \
+                     "форматы файлов: 'bmp, dib, gif, tif, tiff, jfif, " \
+                     "jpe, jpg, jpeg, pbm, pgm, ppm, pnm, png, apng, blp, " \
+                     "bufr, cur, pcx, dcx, dds, ps, eps, fit, " \
+                     "fits, fli, flc, ftc, ftu, gbr, grib, h5, hdf, " \
+                     "jp2, j2k, jpc, jpf, jpx, j2c, icns, ico, im, " \
+                     "iim, mpg, mpeg, mpo, msp, palm, pcd, pdf, pxr, psd, " \
+                     "bw, rgb, rgba, sgi, ras, tga, icb, vda, " \
+                     "vst, webp, wmf, emf, xbm, xpm'."
+        response = self.auth_client.post(reverse("new_post"), data=post_data)
+        self.assertFormError(response, form="form", field="image",
+                             errors=text_error)
 
 
     def test_cache_index(self):
@@ -292,7 +307,7 @@ class TestFollow(TestCase):
         self.assertEqual(before + 1, 1)
 
         post = self.client_auth_following.post(
-            reverse('new_post'),
+            reverse("new_post"),
             data={
                 "author": self.user_following,
                 "text": self.text,
@@ -307,7 +322,20 @@ class TestFollow(TestCase):
         self.assertEqual(post.status_code, 200)
         self.assertContains(response, self.text)
         self.assertContains(response, self.user_following)
-        """не подписчик"""
+
+
+    def test_for_not_follower(self):
+        post = self.client_auth_following.post(
+            reverse("new_post"),
+            data={
+                "author": self.user_following,
+                "text": self.text,
+                "group": self.group.id,
+            },
+            follow=True)
+        self.assertEqual(post.status_code, 200)
+        self.assertEqual(Post.objects.count(), 1)
+
         step = self.client.get(f"/follow/")
         self.assertEqual(step.status_code, 200)
         self.assertNotContains(step, self.text)
