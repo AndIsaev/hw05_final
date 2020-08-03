@@ -1,6 +1,6 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from .models import *
-from .forms import *
+from .models import Post, Group, User, Follow
+from .forms import PostForm, CommentForm
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.views.decorators.cache import cache_page
@@ -51,8 +51,8 @@ def profile(request, username):
     paginator = Paginator(post, 10)
     page_number = request.GET.get("page")
     page = paginator.get_page(page_number)
-    following = Follow.objects.filter(author=author).count()
-    subscriptions = Follow.objects.filter(user=author).count()
+    following = author.following.count()
+    subscriptions = author.follower.count()
     return render(request, "profile.html", {"author": author,
                                             "count":paginator.count,
                                             "page": page,
@@ -118,9 +118,8 @@ def add_comment(request, username, post_id):
 def follow_index(request):
     user_follows = Follow.objects.select_related("author").\
         filter(user=request.user).values_list("author")
-    post_list = Post.objects.filter(author__in=user_follows).\
-        order_by("-pub_date")
-    paginator = Paginator(post_list, 10)
+    posts = Post.objects.filter(author__in=user_follows)
+    paginator = Paginator(posts, 10)
     page_number = request.GET.get("page")
     page = paginator.get_page(page_number)
     return render(request,

@@ -64,8 +64,10 @@ class ProfileTest(TestCase):
             }
         )
         self.assertEqual(response.status_code, 302)
-        self.assertRedirects(response, "/auth/login/?next=/new", status_code=302,
-                        target_status_code=200, msg_prefix="Редирект на вход",
+        self.assertRedirects(response, "/auth/login/?next=/new",
+                             status_code=302,
+                        target_status_code=200,
+                             msg_prefix="Редирект на вход",
                         fetch_redirect_response=True)
 
 
@@ -95,6 +97,8 @@ class ProfileTest(TestCase):
                     "post_id": post.id,
                 })
         ):
+            with self.subTest(url=url):
+                self.assertEqual(url, url)
 
             self._post_for_page(url, post.group, post.author, post.text)
 
@@ -259,8 +263,8 @@ class TestFollow(TestCase):
         self.unauth_client = Client()
 
 
-    def test_follow_unfollow(self):
-        before = Follow.objects.all().count()
+    def test_follow(self):
+        before = Follow.objects.count()
         self.client_auth_follower.get(
             reverse(
                 "profile_follow",
@@ -269,7 +273,21 @@ class TestFollow(TestCase):
                 },
             )
         )
-        after = Follow.objects.all().count()
+        after = Follow.objects.count()
+        self.assertEqual(before + 1, after)
+
+
+    def test_unfollow(self):
+        before = Follow.objects.count()
+        self.client_auth_follower.get(
+            reverse(
+                "profile_follow",
+                kwargs={
+                    "username": self.user_following.username,
+                },
+            )
+        )
+        after = Follow.objects.count()
         self.assertEqual(before + 1, after)
         self.client_auth_follower.get(
             reverse(
@@ -284,14 +302,30 @@ class TestFollow(TestCase):
 
     def test_comment(self):
         cache.clear()
-        self.post = Post.objects.create(text="Hello world", author=self.user_follower)
-        self.client_auth_follower.post(
-            f"/{self.user_follower.username}/{self.post.id}/comment/",
-             {"text": "comment"}, follow=True)
-        response = self.client_auth_following.get(
-            f"/{self.user_follower.username}/{self.post.id}/")
-        self.assertContains(response, "comment")
+        self.post = Post.objects.create(text="Hello world",
+                                        author=self.user_follower)
         self.assertEqual(Post.objects.count(), 1)
+        comment = "Спасибо самому лучшему ревьюеру, за терпение!:)"
+        post_id = self.post.id
+        self.client_auth_follower.post(
+            reverse(
+                "add_comment",
+                kwargs={"username": self.user_follower.username,
+                        "post_id": post_id },
+            ),
+            data={"text": comment},
+            follow=True
+        )
+        response = self.client_auth_following.get(
+            reverse(
+                "post",
+                    kwargs={
+                    "username": self.user_follower.username,
+                    "post_id": post_id,
+                }
+                    )
+        )
+        self.assertContains(response, comment)
 
 
     def test_text_for_follower(self):
@@ -318,8 +352,10 @@ class TestFollow(TestCase):
         self.assertEqual(Post.objects.count(), 1)
 
         """подписчик проверяет пост и наличие автора"""
-        response = self.client_auth_follower.get(f"/follow/")
-        self.assertEqual(post.status_code, 200)
+        response = self.client_auth_follower.get(
+            reverse("follow_index")
+        )
+        self.assertEqual(response.status_code, 200)
         self.assertContains(response, self.text)
         self.assertContains(response, self.user_following)
 
@@ -336,7 +372,9 @@ class TestFollow(TestCase):
         self.assertEqual(post.status_code, 200)
         self.assertEqual(Post.objects.count(), 1)
 
-        step = self.client.get(f"/follow/")
+        step = self.client.get(
+            reverse("follow_index")
+        )
         self.assertEqual(step.status_code, 200)
         self.assertNotContains(step, self.text)
         self.assertNotContains(step, self.user_following)
