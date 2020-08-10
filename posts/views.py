@@ -68,12 +68,16 @@ def post_view(request, username, post_id):
     form = CommentForm(request.POST or None)
     author = post.author
     count = author.posts.count()
+    following = author.following.count()
+    subscriptions = author.follower.count()
     return render(request, "post.html", {
         "post": post,
         "author": author,
         "items": post.comments.all(),
         "form": form,
-        "count": count
+        "count": count,
+        "following": following,
+        "subscriptions": subscriptions
     })
 
 

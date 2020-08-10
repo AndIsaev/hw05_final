@@ -98,9 +98,7 @@ class ProfileTest(TestCase):
                 })
         ):
             with self.subTest(url=url):
-                self.assertEqual(url, url)
-
-            self._post_for_page(url, post.group, post.author, post.text)
+                self._post_for_page(url, post.group, post.author, post.text)
 
 
     def test_edit_post(self):
@@ -159,7 +157,7 @@ class TestSprintTheory06(TestCase):
 
     def test_404(self):
         self.auth_client.force_login(self.user)
-        step = self.auth_client.get(f"/net_takogo/")
+        step = self.auth_client.get("/net_takogo/")
         response = self.auth_client.get(step)
         self.assertTemplateUsed(response, template_name="misc/404.html")
 
