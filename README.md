@@ -11,6 +11,7 @@
 Стек технлогий:
 - Python
 - Django
+- Django REST Framework
 - PostgreSQL
 - Bootstrap 4.3
 - Pillow
