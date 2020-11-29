@@ -15,6 +15,7 @@
 - Bootstrap 4.3
 - Pillow
 - Pytest 
+
 Ссылка на сайт на проект https://praktikum-back.tk/
 
 Чтобы развернуть проект локально:
