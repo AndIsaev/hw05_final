@@ -21,15 +21,10 @@ from django.conf import settings
 from django.conf.urls.static import static
 
 urlpatterns = [
-
-        # flatpages
         path('about/', include('django.contrib.flatpages.urls')),
-        # регистрация и авторизация
         path('auth/', include('users.urls')),
         path('auth/', include('django.contrib.auth.urls')),
-# раздел администратора
         path('admin/', admin.site.urls),
-
 ]
 
 urlpatterns += [
@@ -40,7 +35,6 @@ urlpatterns += [
 ]
 
 urlpatterns += [
-    # импорт из приложения posts
     path('', include('posts.urls')),
 ]
 
@@ -48,11 +42,6 @@ handler404 = "posts.views.page_not_found"  # noqa
 handler500 = "posts.views.server_error"  # noqa
 
 if settings.DEBUG:
-    #import debug_toolbar
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
-#<<<<<<< HEAD
-    #urlpatterns += (path("__debug__/", include(debug_toolbar.urls)),)
-#=======
-    #urlpatterns += (path("__debug__/", include(debug_toolbar.urls)),)
-#>>>>>>> a7bb805505b1383c6fb3cd0b084d826517f8583a
+
