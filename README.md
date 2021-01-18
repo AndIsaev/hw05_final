@@ -18,7 +18,7 @@
 - Pillow
 - Pytest 
 
-Ссылка на сайт на проекта https://praktikum-back.tk/
+Ссылка на сайт https://praktikum-back.tk/
 
 Чтобы развернуть проект локально:
 1. python -m venv venv
